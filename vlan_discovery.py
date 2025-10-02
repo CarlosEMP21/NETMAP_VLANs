@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Descoberta de VLANs via SNMP com integração PHPIpam
-Autor: [Seu Nome] - TCC
+Autor: Carlos Eduardo Mendes Pereira
 """
 
 import subprocess
