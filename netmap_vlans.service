@@ -1,0 +1,13 @@
+[Unit]
+Description=Descoberta diária de VLANs e sincronização com phpIPAM
+After=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/NETMAP_VLANs
+ExecStart=/usr/bin/python3 /root/NETMAP_VLANs/vlan_discovery.py --phpipam --backup --loop 86400
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
