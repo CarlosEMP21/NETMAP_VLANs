@@ -1,0 +1,40 @@
+snmp:
+  community: "automap_vlan"
+  port: 161
+  timeout: 2      # segundos
+  retries: 1
+
+phpipam:
+  url: "https://192.168.10.100/phpipam/api"
+  app_id: "AutomapVLANs"
+  app_code: "qWVFs6XH-p0VpYaSojjc4LYsq"
+  verify_ssl: false
+
+vendors:
+  cisco:
+    mib: "CISCO-VTP-MIB::vtpVlanName"   # “aba” para MIB
+    oid: "1.3.6.1.4.1.9.9.46.1.3.1.1.4" # e OID
+    pattern: "\\.(\\d+)\\s*=\\s*STRING:\\s*\"([^\"]+)\""
+    skip:
+      - "fddi-default"
+      - "trcrf-default"
+      - "fddinet-default"
+      - "trbrf-default"
+
+  huawei:
+    mib: ""   # pode preencher depois
+    oid: "1.3.6.1.4.1.2011.5.25.42.3.1.3.4.1.2"
+    pattern: "\\.(\\d+)\\s*=\\s*STRING:\\s*\"([^\"]+)\""
+    skip: []
+
+  mikrotik:
+    mib: "IF-MIB::ifDescr"
+    oid: "1.3.6.1.2.1.2.2.1.2"
+    pattern: "STRING:\\s*\"vlan(\\d+)\""
+    skip: []
+
+devices:
+  - name: "SW-CORE-LAB"
+    ip: "192.168.10.140"
+    vendor: "cisco"
+    enabled: true
