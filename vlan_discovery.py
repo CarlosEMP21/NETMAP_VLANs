@@ -40,7 +40,7 @@ logger = logging.getLogger(__name__)
 # -----------------------------------------------------------------------------
 # FUNÇÕES BÁSICAS
 # -----------------------------------------------------------------------------
-def load_config(path="config.yaml"):
+def load_config(path="config-prod.yaml"):
     if not os.path.exists(path):
         logger.error(f"Arquivo de configuração não encontrado: {path}")
         sys.exit(1)
@@ -58,17 +58,30 @@ def buscar_vlans(ip, vendor, community, vendors_conf):
         return []
 
     vendor_cfg = vendors_conf[vendor]
-    oid = vendor_cfg["oid"]
+
+    mib = vendor_cfg.get("mib")
+    oid = vendor_cfg.get("oid")
+
+    # Decide qual usar (prioridade: MIB → OID)
+    if mib:
+        target = mib
+    elif oid:
+        target = oid
+    else:
+        logger.error(f"Vendor {vendor} não possui 'mib' nem 'oid' definidos")
+        return []
+
     pattern = re.compile(vendor_cfg["pattern"])
     skip = vendor_cfg.get("skip", [])
 
-    cmd = ["snmpwalk", "-v2c", "-c", community, ip, oid]
+    # Monta o comando SNMP como lista
+    cmd = ["snmpwalk", "-v2c", "-c", str(community), ip, target]
     logger.info(f"Executando: {' '.join(cmd)}")
 
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
     except Exception as e:
-        logger.error(f"Erro ao executar snmpwalk: {e}")
+        logger.error(f"Erro ao executar snmpwalk em {ip}: {e}")
         return []
 
     if result.returncode != 0:
@@ -79,22 +92,28 @@ def buscar_vlans(ip, vendor, community, vendors_conf):
     for line in result.stdout.splitlines():
         match = pattern.search(line)
         if match:
-            try:
-                if len(match.groups()) == 2:
-                    vlan_id = int(match.group(1))
-                    name = match.group(2)
+           try:
+                # sempre pega o ID do primeiro grupo
+                vlan_id = int(match.group(1))
+
+                # segundo grupo pode existir ou não
+                raw_name = match.group(2).strip() if len(match.groups()) >= 2 and match.group(2) else None
+
+                # fallback
+                if raw_name:
+                    name = raw_name
                 else:
-                    vlan_id = int(match.group(1))
-                    name = f"VLAN{vlan_id}"
+                    name = f"vlan{vlan_id}"
+
                 if name not in skip:
                     vlans.append({"vlan_id": vlan_id, "name": name})
-            except Exception:
+
+           except Exception:
                 continue
 
     vlans.sort(key=lambda x: x["vlan_id"])
     logger.info(f"{ip}: {len(vlans)} VLANs encontradas")
     return vlans
-
 
 # -----------------------------------------------------------------------------
 # PHPIPAM CLIENT
@@ -146,7 +165,6 @@ class PhpipamClient:
     def delete_vlan(self, vid):
         return self.delete(f"vlan/{vid}/")
 
-
 # -----------------------------------------------------------------------------
 # FUNÇÕES DE INTEGRAÇÃO
 # -----------------------------------------------------------------------------
@@ -192,7 +210,6 @@ def salvar_backup(nome, vlans):
     with open(arq, "w", encoding="utf-8") as f:
         json.dump(vlans, f, indent=2, ensure_ascii=False)
     logger.info(f"Backup salvo: {arq}")
-
 
 # -----------------------------------------------------------------------------
 # EXECUÇÃO
